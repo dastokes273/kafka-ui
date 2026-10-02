@@ -16,7 +16,6 @@ import io.kafbat.ui.model.KafkaCluster;
 import io.kafbat.ui.model.ServerStatusDTO;
 import io.kafbat.ui.model.SortOrderDTO;
 import io.kafbat.ui.model.Statistics;
-import io.kafbat.ui.service.index.ConsumerGroupFilter;
 import io.kafbat.ui.service.metrics.scrape.ScrapedClusterState;
 import io.kafbat.ui.service.rbac.AccessControlService;
 import io.kafbat.ui.util.ApplicationMetrics;

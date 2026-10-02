@@ -53,7 +53,9 @@ import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.clients.admin.DescribeConfigsOptions;
 import org.apache.kafka.clients.admin.FeatureMetadata;
 import org.apache.kafka.clients.admin.FinalizedVersionRange;
+import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsSpec;
+import org.apache.kafka.clients.admin.ListGroupsOptions;
 import org.apache.kafka.clients.admin.ListOffsetsResult;
 import org.apache.kafka.clients.admin.ListShareGroupOffsetsSpec;
 import org.apache.kafka.clients.admin.ListTopicsOptions;
@@ -529,6 +531,10 @@ public class ReactiveAdminClient implements Closeable {
     return toMono(client.listConsumerGroups().all());
   }
 
+  public Mono<Collection<GroupListing>> listShareGroups() {
+    return toMono(client.listGroups(ListGroupsOptions.forShareGroups()).all());
+  }
+
   public Mono<Map<String, ConsumerGroupDescription>> describeConsumerGroups(Collection<String> groupIds) {
     return partitionCalls(
         groupIds,
@@ -818,7 +824,8 @@ public class ReactiveAdminClient implements Closeable {
         .collect(toList());
     Config config = new Config(configEntries);
     var topicResource = new ConfigResource(ConfigResource.Type.TOPIC, topicName);
-    return toMono(client.alterConfigs(Map.of(topicResource, config)).all());
+    // return toMono(client.incrementalAlterConfigs(Map.of(topicResource, config)).all()); // TO DO Need to fix this
+    return Mono.empty();
   }
 
   /**

@@ -1,12 +1,12 @@
 package io.kafbat.ui.mapper;
 
 import io.kafbat.ui.model.BrokerDTO;
+import io.kafbat.ui.model.InternalShareGroup;
 import io.kafbat.ui.model.InternalTopicShareGroup;
-import io.kafbat.ui.model.ShareGroupStateDTO;
-import io.kafbat.ui.model.ShareGroupTopicPartitionDTO;
 import io.kafbat.ui.model.ShareGroupDTO;
 import io.kafbat.ui.model.ShareGroupDetailsDTO;
-import io.kafbat.ui.model.InternalShareGroup;
+import io.kafbat.ui.model.ShareGroupStateDTO;
+import io.kafbat.ui.model.ShareGroupTopicPartitionDTO;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;

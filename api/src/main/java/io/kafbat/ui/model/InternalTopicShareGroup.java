@@ -5,7 +5,6 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.Value;
-import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ShareGroupDescription;
 import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.Node;
