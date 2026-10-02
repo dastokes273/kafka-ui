@@ -4,7 +4,7 @@ import "./brokers.tsp";
 import "./topics.tsp";
 import "./messages.tsp";
 import "./consumer-groups.tsp";
-import "./consumer-share-groups.tsp";
+import "./share-groups.tsp";
 import "./schemas.tsp";
 import "./kafka-connect.tsp";
 import "./ksql.tsp";
