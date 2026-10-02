@@ -1,0 +1,111 @@
+package io.kafbat.ui.mapper;
+
+import io.kafbat.ui.model.BrokerDTO;
+import io.kafbat.ui.model.InternalTopicShareGroup;
+import io.kafbat.ui.model.ShareGroupStateDTO;
+import io.kafbat.ui.model.ShareGroupTopicPartitionDTO;
+import io.kafbat.ui.model.ShareGroupDTO;
+import io.kafbat.ui.model.ShareGroupDetailsDTO;
+import io.kafbat.ui.model.InternalShareGroup;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicPartition;
+
+public class ShareGroupMapper {
+
+  private ShareGroupMapper() {
+  }
+
+  public static ShareGroupDTO toDto(InternalShareGroup c) {
+    return convertToShareGroup(c, new ShareGroupDTO());
+  }
+
+  public static ShareGroupDTO toDto(InternalTopicShareGroup c) {
+    ShareGroupDTO consumerGroup = new ShareGroupDetailsDTO();
+    consumerGroup.setTopics(1); //for ui backward-compatibility, need to rm usage from ui
+    consumerGroup.setGroupId(c.getGroupId());
+    consumerGroup.setMembers(c.getMembers());
+    consumerGroup.setConsumerLag(c.getConsumerLag());
+    consumerGroup.setSimple(c.isSimple());
+    consumerGroup.setPartitionAssignor(c.getPartitionAssignor());
+    consumerGroup.setState(mapConsumerGroupState(c.getState()));
+    Optional.ofNullable(c.getCoordinator())
+        .ifPresent(cd -> consumerGroup.setCoordinator(mapCoordinator(cd)));
+    return consumerGroup;
+  }
+
+  public static ShareGroupDetailsDTO toDetailsDto(InternalShareGroup g) {
+    ShareGroupDetailsDTO details = convertToShareGroup(g, new ShareGroupDetailsDTO());
+    Map<TopicPartition, ShareGroupTopicPartitionDTO> partitionMap = new HashMap<>();
+
+    for (Map.Entry<TopicPartition, Long> entry : g.getOffsets().entrySet()) {
+      ShareGroupTopicPartitionDTO partition = new ShareGroupTopicPartitionDTO();
+      partition.setTopic(entry.getKey().topic());
+      partition.setPartition(entry.getKey().partition());
+      partition.setCurrentOffset(entry.getValue());
+
+      final Optional<Long> endOffset = Optional.ofNullable(g.getEndOffsets())
+          .map(o -> o.get(entry.getKey()));
+
+      final Long behind = endOffset.map(o -> o - entry.getValue())
+          .orElse(0L);
+
+      partition.setEndOffset(endOffset.orElse(0L));
+      partition.setConsumerLag(behind);
+
+      partitionMap.put(entry.getKey(), partition);
+    }
+
+    for (InternalShareGroup.InternalMember member : g.getMembers()) {
+      for (TopicPartition topicPartition : member.getAssignment()) {
+        final ShareGroupTopicPartitionDTO partition = partitionMap.computeIfAbsent(
+            topicPartition,
+            tp -> new ShareGroupTopicPartitionDTO()
+                .topic(tp.topic())
+                .partition(tp.partition())
+        );
+        partition.setHost(member.getHost());
+        partition.setConsumerId(member.getConsumerId());
+        partitionMap.put(topicPartition, partition);
+      }
+    }
+    details.setPartitions(new ArrayList<>(partitionMap.values()));
+    return details;
+  }
+
+  private static <T extends ShareGroupDTO> T convertToShareGroup(
+      InternalShareGroup c, T consumerGroup) {
+    consumerGroup.setGroupId(c.getGroupId());
+    consumerGroup.setMembers(c.getMembers().size());
+    consumerGroup.setConsumerLag(c.getConsumerLag());
+    consumerGroup.setTopics(c.getTopicNum());
+    consumerGroup.setSimple(c.isSimple());
+
+    Optional.ofNullable(c.getState())
+        .ifPresent(s -> consumerGroup.setState(mapConsumerGroupState(s)));
+    Optional.ofNullable(c.getCoordinator())
+        .ifPresent(cd -> consumerGroup.setCoordinator(mapCoordinator(cd)));
+
+    consumerGroup.setPartitionAssignor(c.getPartitionAssignor());
+    return consumerGroup;
+  }
+
+  private static BrokerDTO mapCoordinator(Node node) {
+    return new BrokerDTO().host(node.host()).id(node.id()).port(node.port());
+  }
+
+  private static ShareGroupStateDTO mapConsumerGroupState(org.apache.kafka.common.GroupState state) {
+    return switch (state) {
+      case DEAD -> ShareGroupStateDTO.DEAD;
+      case EMPTY -> ShareGroupStateDTO.EMPTY;
+      case STABLE -> ShareGroupStateDTO.STABLE;
+      case PREPARING_REBALANCE -> ShareGroupStateDTO.PREPARING_REBALANCE;
+      case COMPLETING_REBALANCE -> ShareGroupStateDTO.COMPLETING_REBALANCE;
+      default -> ShareGroupStateDTO.UNKNOWN;
+    };
+  }
+
+}

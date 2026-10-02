@@ -16,7 +16,7 @@ assertj = '3.25.3'
 avro = '1.12.1'
 byte-buddy = '1.18.1'
 confluent = '7.9.10'
-confluent-ccs = '7.9.10-ccs'
+confluent-ccs = '8.2.4-ccs'
 msgpack = "0.9.11"
 
 mapstruct = '1.6.2'

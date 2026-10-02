@@ -55,6 +55,7 @@ import org.apache.kafka.clients.admin.FeatureMetadata;
 import org.apache.kafka.clients.admin.FinalizedVersionRange;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsSpec;
 import org.apache.kafka.clients.admin.ListOffsetsResult;
+import org.apache.kafka.clients.admin.ListShareGroupOffsetsSpec;
 import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.clients.admin.LogDirDescription;
 import org.apache.kafka.clients.admin.NewPartitionReassignment;
@@ -64,6 +65,8 @@ import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.ProducerState;
 import org.apache.kafka.clients.admin.QuorumInfo;
 import org.apache.kafka.clients.admin.RecordsToDelete;
+import org.apache.kafka.clients.admin.ShareGroupDescription;
+import org.apache.kafka.clients.admin.SharePartitionOffsetInfo;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaException;
@@ -536,6 +539,16 @@ public class ReactiveAdminClient implements Closeable {
     );
   }
 
+  public Mono<Map<String, ShareGroupDescription>> describeShareGroups(Collection<String> groupIds) {
+    return partitionCalls(
+        groupIds,
+        properties.getDescribeConsumerGroupsPartitionSize(),
+        properties.getDescribeConsumerGroupsConcurrency(),
+        ids -> toMono(client.describeShareGroups(ids).all()),
+        mapMerger()
+    );
+  }
+
   // group -> partition -> offset
   // NOTE: partitions with no committed offsets will be skipped
   public Mono<Table<String, TopicPartition, Long>> listConsumerGroupOffsets(List<String> consumerGroups,
@@ -570,6 +583,42 @@ public class ReactiveAdminClient implements Closeable {
       return table.build();
     });
   }
+
+  // group -> partition -> offset
+  // NOTE: partitions with no committed offsets will be skipped
+  public Mono<Table<String, TopicPartition, Long>> listShareGroupOffsets(List<String> shareGroups,
+                                                                            // all partitions if null passed
+                                                                            @Nullable List<TopicPartition> partitions) {
+    Function<Collection<String>, Mono<Map<String, Map<TopicPartition, SharePartitionOffsetInfo>>>> call =
+        groups -> toMono(
+            client.listShareGroupOffsets(
+                groups.stream()
+                    .collect(Collectors.toMap(
+                        g -> g,
+                        g -> new ListShareGroupOffsetsSpec().topicPartitions(partitions)
+                    ))).all()
+        );
+
+    Mono<Map<String, Map<TopicPartition, SharePartitionOffsetInfo>>> merged = partitionCalls(
+        shareGroups,
+        properties.getListConsumerGroupOffsetsPartitionSize(),
+        properties.getListConsumerGroupOffsetsConcurrency(),
+        call,
+        mapMerger()
+    );
+
+    return merged.map(map -> {
+      var table = ImmutableTable.<String, TopicPartition, Long>builder();
+      map.forEach((g, tpOffsets) -> tpOffsets.forEach((tp, offset) -> {
+        if (offset != null) {
+          // offset will be null for partitions that don't have committed offset for this group
+          table.put(g, tp, offset.startOffset());
+        }
+      }));
+      return table.build();
+    });
+  }
+
 
   public Mono<Void> alterConsumerGroupOffsets(String groupId, Map<TopicPartition, Long> offsets) {
     return toMono(client.alterConsumerGroupOffsets(
