@@ -44,7 +44,6 @@ import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AlterConfigOp;
-import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
@@ -819,13 +818,12 @@ public class ReactiveAdminClient implements Closeable {
 
   @SuppressWarnings("deprecation")
   private Mono<Void> alterConfig(String topicName, Map<String, String> configs) {
-    List<ConfigEntry> configEntries = configs.entrySet().stream()
-        .flatMap(cfg -> Stream.of(new ConfigEntry(cfg.getKey(), cfg.getValue())))
+    List<AlterConfigOp> configEntries = configs.entrySet().stream()
+        .flatMap(cfg -> Stream.of(
+            new AlterConfigOp(new ConfigEntry(cfg.getKey(), cfg.getValue()), AlterConfigOp.OpType.SET)))
         .collect(toList());
-    Config config = new Config(configEntries);
     var topicResource = new ConfigResource(ConfigResource.Type.TOPIC, topicName);
-    // return toMono(client.incrementalAlterConfigs(Map.of(topicResource, config)).all()); // TO DO Need to fix this
-    return Mono.empty();
+    return toMono(client.incrementalAlterConfigs(Map.of(topicResource, configEntries)).all());
   }
 
   /**
